@@ -1,0 +1,106 @@
+---
+title: "Practical Machining Learning Course Project"
+author: "Shan Gong"
+date: "4/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+  library(caret)
+  library(ggplot2)
+  library(randomForest)
+```
+
+## Introduction
+
+Using devices such as _Jawbone Up_, _Nike FuelBand_, and _Fitbit_ it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify _how well they do it_. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+## Model Creation
+
+### Loading Data
+
+Load data: training and testing
+
+```{r}
+train <- read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+test <- read.csv("pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+```
+
+A brief summary of the train dataset
+
+```{r}
+summary(train)
+summary(train$classe)
+names(train)
+```
+
+## Data Partition
+
+Data partition: training dataset and crossvalidation dataset
+```{r}
+set.seed(123)
+inTrain <- createDataPartition(y=train$classe, p=0.6, list=FALSE)
+TrainSet <- train[inTrain, ]
+ValidationSet <- train[-inTrain, ]
+```
+
+## Feature Selection
+
+There are 160 variables in the train and not all of them will be used as predictors. The first 7 columns are just some information of the participant and test, so they will be removed.
+
+```{r}
+TrainSet1 <- TrainSet[ , 8:length(TrainSet)]
+```
+
+The next step is to remove variables which have large portion of NA's. Here the threshold is set as 0.6, i.e., if the values of a variable have more than 60% NA's, it will be removed.
+
+```{r}
+index <- 0
+TrainSet2 <- TrainSet1
+for (i in 1:length(TrainSet1)) {
+  if (sum(is.na(TrainSet1[ , i]))/nrow(TrainSet1) >= 0.6) {
+    TrainSet2 <- TrainSet2[ , -(i-index)]
+    index <- index+1
+  }
+}
+```
+
+The third step is to remove variables with near zero variance
+```{r}
+NZVar <- nearZeroVar(TrainSet2, saveMetrics = TRUE)
+```
+
+### Random Forest Model
+
+Here, the random forest model is selected to do this multi-classification problem.
+
+```{r}
+set.seed(1234)
+
+modelFit <- randomForest(classe~., data = TrainSet2)
+print(modelFit)
+```
+
+Check the performance on the cross-validation dataset.
+```{r}
+predictValid <- predict(modelFit, ValidationSet, type = "class")
+confusionMatrix(ValidationSet$classe, predictValid)
+```
+
+Check the performance on the training dataset.
+```{r}
+predictTrain <- predict(modelFit, train, type = "class")
+confusionMatrix(train$classe, predictTrain)
+```
+
+As can be seen here, the accuracy is about 99.45% when running the model on the cross validation dataset and about 99.79% when running on the whole train dataset.
+
+## Prediction
+
+Use the fitted model above to predict the classe of the test dataset.
+
+```{r}
+predictTest <- predict(modelFit, test, type = "class")
+print(predictTest)
+```
