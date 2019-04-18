@@ -8,6 +8,7 @@ The goal of your project is to predict the manner in which they did the exercise
 
 ## Dataset
 Training data: pml-train.csv
+
 Testing data: pml-testing.csv
 
 ## Contents
